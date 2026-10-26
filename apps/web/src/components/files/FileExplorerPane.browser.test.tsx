@@ -115,6 +115,42 @@ describe("FileExplorerPane", () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBe("160");
   });
 
+  it("keeps keyboard and pointer resizing usable when browser storage rejects writes", async () => {
+    using _storage = storedWidth(256);
+    await using screen = await render(<PreviewRow width={600} />);
+    const write = Storage.prototype.setItem;
+    using _write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      key,
+      value,
+    ) {
+      if (key === STORAGE_KEY) throw new DOMException("Storage is full", "QuotaExceededError");
+      write.call(this, key, value);
+    });
+    using errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    // Synthetic pointer ids are not active browser pointers.
+    using _capture = vi
+      .spyOn(HTMLElement.prototype, "setPointerCapture")
+      .mockImplementation(() => {});
+    const explorer = screen.getByRole("complementary", { name: "File explorer" });
+    const handle = screen.getByRole("separator", { name: "Resize file explorer" });
+
+    await userEvent.tab();
+    await userEvent.keyboard("{ArrowLeft}");
+    await expectWidth(explorer, 272);
+    await expect.element(handle).toHaveAttribute("aria-valuenow", "272");
+    expect(localStorage.getItem(STORAGE_KEY)).toBe("256");
+
+    drag(handle.element() as HTMLElement, -40);
+    await expectWidth(explorer, 312);
+    await expect.element(handle).toHaveAttribute("aria-valuenow", "312");
+    await screen.rerender(<PreviewRow />);
+    await expectWidth(explorer, 312);
+    expect(localStorage.getItem(STORAGE_KEY)).toBe("256");
+    expect(errors).toHaveBeenCalledTimes(2);
+    expect(errors).toHaveBeenCalledWith("Could not persist panel width.", expect.any(Error));
+  });
+
   it("cleans up an active drag when the explorer is hidden", async () => {
     using _storage = storedWidth(256);
     await using screen = await render(<PreviewRow />);

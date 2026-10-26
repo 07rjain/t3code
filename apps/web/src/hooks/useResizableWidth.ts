@@ -61,6 +61,7 @@ export function useResizableWidth(options: UseResizableWidthOptions): {
 
   const setWidth = (value: number) => {
     const nextWidth = latestOptions.current.clamp(value);
+    // Resizing remains usable for this session when browser storage is unavailable.
     setWidthState({ storageKey: latestOptions.current.storageKey, width: nextWidth });
     try {
       setLocalStorageItem(latestOptions.current.storageKey, nextWidth, WidthSchema);
