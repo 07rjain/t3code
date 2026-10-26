@@ -30,7 +30,7 @@ export function FileExplorerPane({
     measure();
     return observeResize(row, measure);
   }, [resizable]);
-  const { width, handlers } = useResizableWidth({
+  const { width, setWidth, handlers } = useResizableWidth({
     storageKey: "t3code.fileExplorerWidth",
     defaultWidth: 256,
     minWidth: MIN_WIDTH,
@@ -56,7 +56,37 @@ export function FileExplorerPane({
       }
     >
       {resizable ? (
-        <RightPanelResizeHandle handlers={handlers} label="Resize file explorer" />
+        <RightPanelResizeHandle
+          handlers={handlers}
+          label="Resize file explorer"
+          tabIndex={0}
+          aria-valuenow={width}
+          aria-valuemin={MIN_WIDTH}
+          aria-valuemax={maxWidth}
+          onKeyDown={(event) => {
+            if (event.altKey || event.ctrlKey || event.metaKey) return;
+            let nextWidth: number;
+            switch (event.key) {
+              case "ArrowLeft":
+                nextWidth = width + 16;
+                break;
+              case "ArrowRight":
+                nextWidth = width - 16;
+                break;
+              case "Home":
+                nextWidth = MIN_WIDTH;
+                break;
+              case "End":
+                nextWidth = maxWidth;
+                break;
+              default:
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            setWidth(nextWidth);
+          }}
+        />
       ) : null}
       {children}
     </aside>

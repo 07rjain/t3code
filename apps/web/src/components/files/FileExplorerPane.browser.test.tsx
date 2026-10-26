@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vite-plus/test";
-import type { Locator } from "vite-plus/test/browser";
+import { type Locator, userEvent } from "vite-plus/test/browser";
 
 import { render } from "../../../test/render";
 import { FileExplorerPane } from "./FileExplorerPane";
@@ -40,6 +40,39 @@ function storedWidth(width: number) {
 }
 
 describe("FileExplorerPane", () => {
+  it("resizes from the keyboard and exposes the current width and row bounds", async () => {
+    using _storage = storedWidth(256);
+    await using screen = await render(<PreviewRow width={600} />);
+    const handle = screen.getByRole("separator", { name: "Resize file explorer" });
+    const explorer = screen.getByRole("complementary", { name: "File explorer" });
+
+    await userEvent.tab();
+    await expect.element(handle).toHaveFocus();
+    await userEvent.keyboard("{ArrowLeft}");
+    await expectWidth(explorer, 272);
+    await expect.element(handle).toHaveAttribute("aria-valuenow", "272");
+    await expect.element(handle).toHaveAttribute("aria-valuemin", "160");
+    await expect.element(handle).toHaveAttribute("aria-valuemax", "344");
+    expect(localStorage.getItem(STORAGE_KEY)).toBe("272");
+
+    await userEvent.keyboard("{End}{ArrowLeft}");
+    await expectWidth(explorer, 344);
+    await userEvent.keyboard("{Home}{ArrowRight}");
+    await expectWidth(explorer, 160);
+
+    await screen.rerender(<PreviewRow width={360} />);
+    await expect.element(handle).toHaveAttribute("aria-valuemax", "160");
+    await userEvent.keyboard("{ArrowLeft}");
+    await expectWidth(explorer, 160);
+
+    await screen.rerender(<PreviewRow />);
+    await userEvent.keyboard("{ArrowLeft}");
+    await expectWidth(explorer, 176);
+    await screen.rerender(null);
+    await screen.rerender(<PreviewRow />);
+    await expectWidth(explorer, 176);
+  });
+
   it("restores the saved width after narrowing and widening the preview row", async () => {
     using _storage = storedWidth(480);
     await using screen = await render(<PreviewRow />);

@@ -1513,7 +1513,7 @@ export default function FilePreviewPanel({
           ) : null}
         </div>
         {showExplorer ? (
-          <FileExplorerPane resizable={previewPath !== null}>
+          <FileExplorerPane resizable={Boolean(previewPath)}>
             <FileBrowserPanel
               key={`${environmentId}:${hostFolderPath ?? cwd}`}
               environmentId={environmentId}

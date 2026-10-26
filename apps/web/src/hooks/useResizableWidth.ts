@@ -28,6 +28,7 @@ export interface ResizableWidthHandlers {
 /** Persist on drag end to avoid a storage write on every animation frame. */
 export function useResizableWidth(options: UseResizableWidthOptions): {
   readonly width: number;
+  readonly setWidth: (width: number) => void;
   readonly handlers: ResizableWidthHandlers;
 } {
   const { storageKey, defaultWidth, minWidth, maxWidth, edge } = options;
@@ -58,6 +59,16 @@ export function useResizableWidth(options: UseResizableWidthOptions): {
     latestOptions.current = { clamp, storageKey, width: clampedWidth };
   }, [clamp, clampedWidth, storageKey]);
 
+  const setWidth = (value: number) => {
+    const nextWidth = latestOptions.current.clamp(value);
+    setWidthState({ storageKey: latestOptions.current.storageKey, width: nextWidth });
+    try {
+      setLocalStorageItem(latestOptions.current.storageKey, nextWidth, WidthSchema);
+    } catch (error) {
+      console.error("Could not persist panel width.", error);
+    }
+  };
+
   const { refresh, ...handlers } = useResizeDrag<HTMLElement>((event) => {
     const host = event.currentTarget.parentElement;
     // Disable drag transitions through transition-property; the host renders transition-duration.
@@ -70,14 +81,7 @@ export function useResizableWidth(options: UseResizableWidthOptions): {
         host?.style.setProperty(RESIZABLE_WIDTH_PROPERTY, `${nextWidth}px`);
         return nextWidth;
       },
-      finish(finalWidth) {
-        setWidthState({ storageKey, width: finalWidth });
-        try {
-          setLocalStorageItem(latestOptions.current.storageKey, finalWidth, WidthSchema);
-        } catch (error) {
-          console.error("Could not persist panel width.", error);
-        }
-      },
+      finish: setWidth,
       cleanup(committed) {
         host?.style.removeProperty("transition-property");
         if (!committed) {
@@ -90,5 +94,5 @@ export function useResizableWidth(options: UseResizableWidthOptions): {
   // Mid-drag bound changes rewrite committed width; restore the live pointer position.
   useLayoutEffect(refresh, [clamp, clampedWidth, refresh]);
 
-  return { width: clampedWidth, handlers };
+  return { width: clampedWidth, setWidth, handlers };
 }
